@@ -1,14 +1,3 @@
-# lab-01 — Configuração   
-
-Laboratório containerlab para  mitigação de ataque DoS usando iptables e zabix como monitor de observabilidade. 
-
-[![Containerlab](https://img.shields.io/badge/Containerlab-v0.50+-blue?style=for-the-badge&logo=linux&logoColor=white)](https://containerlab.dev)
-[![Docker](https://img.shields.io/badge/Docker-required-blue?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com)
-[![Licença](https://img.shields.io/badge/licença-GPL--2.0-green?style=for-the-badge)](LICENSE)
-![Zabbix](https://img.shields.io/badge/Zabbix-D40000?style=for-the-badge&logo=zabbix&logoColor=white)
-![iptables](https://img.shields.io/badge/iptables-Firewall-E65100?style=for-the-badge&logo=linux&logoColor=white)
----
-
 # 📊 Configuração Simples do Zabbix (Monitoramento de Rede)
 
 Guia passo a passo para cadastrar os ativos da topologia no Zabbix e monitorar a disponibilidade e latência da rede via checagem ICMP (Ping simples).
@@ -17,7 +6,7 @@ Guia passo a passo para cadastrar os ativos da topologia no Zabbix e monitorar a
 
 ## 📋 Ativos a Serem Monitorados
 
-O servidor Zabbix (`10.0.0.5`) realizará a coleta dos dados diretamente na interface interna dos dispositivos cadastrados:
+O servidor Zabbix (`10.0.0.5`) fará a coleta dos dados diretamente nos endereços IPs dos containers da rede:
 
 | Host | IP na Topologia | Tipo de Monitoramento |
 | :--- | :--- | :--- |
@@ -36,31 +25,40 @@ O servidor Zabbix (`10.0.0.5`) realizará a coleta dos dados diretamente na inte
    * **Usuário:** `Admin` *(com 'A' maiúsculo)*
    * **Senha:** `zabbix`
 
-### 2. Criar um Grupo de Hosts (Organização)
-1. No menu esquerdo, acesse **Configuration** > **Host groups** (ou *Configuração* > *Grupos de hosts*).
-2. Clique no botão **Create host group** (no canto superior direito).
+---
+
+### 2. Criar o Grupo de Hosts
+1. No menu superior, acesse **Configuration** > **Host groups**.
+2. No **canto superior direito**, clique no botão azul **Create host group**.
 3. No campo **Group name**, digite: `Lab01 - Rede Local`.
-4. Clique em **Add**.
+4. Clique no botão **Add** no rodapé da página.
 
-### 3. Cadastrar os Dispositivos
-Para cada ativo da tabela (`firewall`, `pc1`, `pc2` e `pc3`), siga o procedimento abaixo:
+---
 
-1. Acesse **Configuration** > **Hosts** e clique em **Create host**.
-2. Na aba **Host**, preencha:
-   * **Host name:** Nome do ativo (exemplo: `pc1`).
-   * **Templates:** Busque e selecione o template **`ICMP Ping`** (ou `Service - ICMP Ping`).
-   * **Host groups:** Selecione o grupo criado (`Lab01 - Rede Local`).
-   * **Interfaces:** Clique em **Add** > **Agent**, selecione **IP** e digite o endereço correspondente (exemplo: `10.0.0.2` para o `pc1`).
-3. Clique em **Add** para salvar.
+### 3. Cadastrar os Dispositivos (Firewall, PC1, PC2 e PC3)
+
+> ⚠️ **ATENÇÃO:** Não digite os dados nas caixas de texto no centro da tela de Hosts — elas servem apenas para **Filtrar/Buscar**. Para abrir o formulário de cadastro, você deve usar o botão azul no canto superior direito.
+
+Para cada dispositivo (`firewall`, `pc1`, `pc2` e `pc3`), faça o seguinte:
+
+1. Acesse **Configuration** > **Hosts** no menu superior.
+2. Clique no botão azul **`Create host`** localizado no **canto superior direito da tela** (ao lado de *Import*).
+3. Na aba **Host**, preencha os campos:
+   * **Host name:** Nome do ativo (exemplo: `firewall` ou `pc1`).
+   * **Groups:** Clique em **Select** do lado do campo, marque o grupo `Lab01 - Rede Local` e clique em **Select**.
+   * **Interfaces:** Na seção *Interfaces*, clique em **Add** > **Agent**, selecione a opção **IP** e digite o IP correspondente (exemplo: `10.0.0.1` para o firewall).
+4. Vincular o Template de Ping:
+   * No campo **Templates**, clique em **Select**, busque por `Template Module ICMP Ping` (ou `Service - ICMP Ping`), selecione-o e clique em **Select**.
+5. Clique no botão azul **Add** na parte inferior da tela para finalizar o cadastro.
 
 ---
 
 ## 📈 Visualizando o Comportamento da Rede
 
-Após cadastrar os hosts, o Zabbix começará a disparar pings a cada 1 minuto.
+Após cadastrar os hosts, aguarde de 1 a 2 minutos para o Zabbix iniciar as coletas.
 
-* **Status de Disponibilidade:** Acesse **Monitoring** > **Hosts**. Todos os hosts cadastrados devem listar o status em verde.
+* **Status de Disponibilidade:** Acesse **Monitoring** > **Hosts**. Todos os equipamentos cadastrados devem exibir o status em verde na coluna de disponibilidade.
 * **Gráficos de Latência e Perda de Pacotes:**
-  1. Vá em **Monitoring** > **Latest data** (Dados recentes).
-  2. Filtre pelo grupo `Lab01 - Rede Local`.
-  3. Clique em **Graph** ao lado das métricas *ICMP response time* (tempo de resposta) ou *ICMP loss* (perda de pacotes) para acompanhar o comportamento em tempo real.
+  1. Acesse **Monitoring** > **Latest data**.
+  2. No filtro de grupos, selecione `Lab01 - Rede Local` e clique em **Apply**.
+  3. Clique em **Graph** ao lado das métricas *ICMP response time* ou *ICMP loss* para ver os gráficos em tempo real.
