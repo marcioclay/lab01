@@ -19,23 +19,15 @@ Laboratório containerlab para  mitigação de ataque DoS usando iptables e zabi
 Clone o repositório contendo a estrutura da pasta /lab e ajuste as permissões de execução do script:
 
 ```
-# 1. Clona a estrutura do repositório
-git clone --filter=blob:none --sparse https://github.com/marcioclay/Seguranca_Redes-CEET.git
-
-# 2. Entra no diretório e baixa apenas a pasta do laboratorio1
-cd Seguranca_Redes-CEET
-git sparse-checkout set "Laboratorio/laboratorio1"
-
-# 3. Acesse a pasta e execute o setup
-cd Laboratorio/laboratorio1
-chmod +x scripts/setup.sh
-./scripts/setup.sh
+git clone [https://github.com/marcioclay/lab01.git](https://github.com/marcioclay/lab01.git)
+cd lab01
 ```
 ## 3. Implantar e testar a topologia: 
 Criação da bridge e subida dos containers.
 Execute o script de automação a partir do diretório /lab para criar a bridge switch e realizar o deploy: 
 
 ```
+chmod +x scripts/setup.sh
 ./scripts/setup.sh
 ```
 
