@@ -2,6 +2,12 @@
 
 Guia passo a passo para cadastrar os ativos da topologia no Zabbix e monitorar a disponibilidade e latência da rede via checagem ICMP (Ping simples).
 
+[![Containerlab](https://img.shields.io/badge/Containerlab-v0.50+-blue?style=for-the-badge&logo=linux&logoColor=white)](https://containerlab.dev)
+[![Docker](https://img.shields.io/badge/Docker-required-blue?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com)
+[![Licença](https://img.shields.io/badge/licença-GPL--2.0-green?style=for-the-badge)](LICENSE)
+![Zabbix](https://img.shields.io/badge/Zabbix-D40000?style=for-the-badge&logo=zabbix&logoColor=white)
+![iptables](https://img.shields.io/badge/iptables-Firewall-E65100?style=for-the-badge&logo=linux&logoColor=white)
+
 ---
 
 ## 📋 Ativos a Serem Monitorados
