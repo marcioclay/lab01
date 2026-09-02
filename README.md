@@ -19,7 +19,7 @@ Laboratório containerlab para  mitigação de ataque DoS usando iptables e zabi
 Clone o repositório contendo a estrutura da pasta /lab e ajuste as permissões de execução do script:
 
 ```
-git clone [https://github.com/marcioclay/lab01.git](https://github.com/marcioclay/lab01.git)
+git clone https://github.com/marcioclay/lab01.git
 cd lab01
 ```
 ## 3. Implantar e testar a topologia: 
