@@ -53,12 +53,12 @@ Abaixo está a tabela com os endereços de rede configurados na subnet 10.0.0.0/
 Realize testes de conectividade ICMP (ping) entre diferentes pontos da rede:
 ```
 # 1. Testar comunicação do PC1 até o Firewall
-docker exec -it clab-lab-pc1 ping -c 3 10.0.0.1
+docker exec -it clab-lab01-pc1 ping -c 3 10.0.0.1
 
 # 2. Testar comunicação do Zabbix até o PC1, PC2 e PC3
-docker exec -it clab-lab-zabbix ping -c 3 10.0.0.2
-docker exec -it clab-lab-zabbix ping -c 3 10.0.0.3
-docker exec -it clab-lab-zabbix ping -c 3 10.0.0.4
+docker exec -it clab-lab01-zabbix ping -c 3 10.0.0.2
+docker exec -it clab-lab01-zabbix ping -c 3 10.0.0.3
+docker exec -it clab-lab01-zabbix ping -c 3 10.0.0.4
 ```
 
 ## 7. Testar o serviço e acessar o Zabbix: Verificação da porta HTTP e login.
