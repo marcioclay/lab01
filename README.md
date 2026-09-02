@@ -34,7 +34,7 @@ chmod +x scripts/setup.sh
 ## 4. Para validar se todos os containers foram iniciados corretamente pelo Containerlab, execute:
 
 ``` 
-sudo containerlab inspect -t lab.clab.yml
+sudo containerlab inspect -t topologia.yml
 ```
 
 ## 5. Mapeamento dos IPs dos hosts:
