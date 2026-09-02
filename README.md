@@ -65,6 +65,10 @@ docker exec -it clab-lab01-zabbix ping -c 3 10.0.0.4
 Confirme se a interface web do Zabbix está respondendo na porta mapeada (8080):
 
 ```
+# Ver status do zabbix
+docker ps -f name=clab-lab01-zabbix 
+```
+```
 curl -I http://localhost:8080
 ```
 
