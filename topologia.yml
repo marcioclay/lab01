@@ -12,12 +12,11 @@ topology:
         - ip addr add 192.168.20.1/24 dev eth2
         - sysctl -w net.ipv4.ip_forward=1
 
-    # Definidos como ovs-bridge para criar switches virtuais internos isolados autonomamente
     switch1:
-      kind: ovs-bridge
+      kind: bridge
 
     switch2:
-      kind: ovs-bridge
+      kind: bridge
 
     atacante:
       kind: linux
@@ -49,10 +48,10 @@ topology:
 
   links:
     # Rede Externa WAN (Switch 1)
-    - endpoints: ["atacante:eth1", "switch1:eth1"]
-    - endpoints: ["firewall:eth1", "switch1:eth2"]
+    - endpoints: ["atacante:eth1", "switch1:sw1-p1"]
+    - endpoints: ["firewall:eth1", "switch1:sw1-p2"]
 
     # Rede Interna LAN (Switch 2)
-    - endpoints: ["firewall:eth2", "switch2:eth1"]
-    - endpoints: ["cliente:eth1", "switch2:eth2"]
-    - endpoints: ["zabbix:eth1", "switch2:eth3"]
+    - endpoints: ["firewall:eth2", "switch2:sw2-p1"]
+    - endpoints: ["cliente:eth1", "switch2:sw2-p2"]
+    - endpoints: ["zabbix:eth1", "switch2:sw2-p3"]
