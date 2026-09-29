@@ -82,21 +82,16 @@ docker exec -it clab-lab01-firewall watch -n 1 "iptables -L FORWARD -n -v"
 
 
 
+## 7. Mapeamento dos IPs dos hosts
 
+Endereçamento configurado nas interfaces de rede divididas entre a sub-rede WAN (`192.168.10.0/24`) e LAN (`192.168.20.0/24`):
 
-
-
-## 5. Mapeamento dos IPs dos hosts:
-Endereçamento configurado nas interfaces eth1.
-Abaixo está a tabela com os endereços de rede configurados na subnet 10.0.0.0/24:
-
-| **Container** | **Interface Interna** | **Endereço IP** | **Função na Topologia** |
-|---|---|---|---|
-| **firewall** | `eth1` | `10.0.0.1/24` | Gateway / Firewall |
-| **pc1** | `eth1` | `10.0.0.2/24` | Estação de Trabalho |
-| **pc2** | `eth1` | `10.0.0.3/24` | Estação de Trabalho |
-| **pc3** | `eth1` | `10.0.0.4/24` | Estação de Trabalho |
-| **zabbix** | `eth1` | `10.0.0.5/24` | Servidor de Monitoramento All-in-One | 
+| **Contentor** | **Interface de Rede** | **Endereço IP** | **Rede / Segmento** | **Função na Topologia** |
+|---|---|---|---|---|
+| **firewall** | `eth1`<br>`eth2` | `192.168.10.1/24`<br>`192.168.20.1/24` | WAN (`switch1`)<br>LAN (`switch2`) | Gateway / Firewall / Router NAT |
+| **atacante** | `eth1` | `192.168.10.10/24` | WAN (`switch1`) | Host Atacante (Gera tráfego DoS/DDoS via `hping3`) |
+| **cliente** | `eth1` | `192.168.20.10/24` | LAN (`switch2`) | Estação de Trabalho Legítima / Alvo |
+| **zabbix** | `eth1` | `192.168.20.5/24` | LAN (`switch2`) | Servidor de Monitorização All-in-One |
 
 ## 6. Testar conectividade entre os hosts: Validação do tráfego através do switch virtual.
 Realize testes de conectividade ICMP (ping) entre diferentes pontos da rede:
