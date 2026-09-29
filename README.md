@@ -118,7 +118,7 @@ Confirme se a interface web do Zabbix está respondendo na porta mapeada (8080):
 
 ```
 
-# 9. Ver status do zabbix
+## 9. Ver status do zabbix
 ```
 docker ps -f name=clab-lab01-zabbix 
 ```
