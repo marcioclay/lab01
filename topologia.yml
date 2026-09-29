@@ -12,11 +12,12 @@ topology:
         - ip addr add 192.168.20.1/24 dev eth2
         - sysctl -w net.ipv4.ip_forward=1
 
+    # Definidos como ovs-bridge para criar switches virtuais internos isolados autonomamente
     switch1:
-      kind: bridge
+      kind: ovs-bridge
 
     switch2:
-      kind: bridge
+      kind: ovs-bridge
 
     atacante:
       kind: linux
@@ -44,7 +45,7 @@ topology:
         - "10051:10051"
       exec:
         - ip addr add 192.168.20.5/24 dev eth1
-        - ip route add 192.168.10.0/24 via 192.168.20.1 dev eth1
+        - ip route replace default via 192.168.20.1 dev eth1
 
   links:
     # Rede Externa WAN (Switch 1)
