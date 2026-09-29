@@ -1,1554 +1,196 @@
-# 🛡️ Firewall com IPTABLES
-
-## 1. Objetivos da aula
-
-Ao final desta aula, você deverá ser capaz de:
-
-* Entender o que é um **firewall**.
-* Identificar a função do `iptables` no Linux.
-* Entender o conceito de **regra de firewall**.
-* Identificar origem, destino, protocolo e porta de uma comunicação.
-* Criar regras simples utilizando `iptables`.
-* Permitir ou bloquear determinados tipos de tráfego.
-* Testar as regras utilizando `ping`, `curl` e conexões de rede.
-* Compreender a função do firewall dentro de uma topologia de rede.
-* Utilizar o **Docker + Containerlab** para montar um laboratório de firewall.
+# 🛡️ Guia Didático: Conceitos de Firewall e IPTABLES na Prática
 
 ---
 
-# 2. O que é um Firewall?
+## 1. O que é um Firewall?
 
-Um **firewall** é um mecanismo utilizado para controlar o tráfego de rede.
+Um **firewall** é um dispositivo de segurança de rede encarregado de inspecionar e controlar o tráfego que entra, sai ou atravessa uma rede. 
 
-Imagine que uma rede possui vários computadores:
-
-```text
-Cliente ──────────────── Servidor
-   │
-   │
-Atacante
-```
-
-Todos esses equipamentos podem tentar se comunicar.
-
-O firewall funciona como um **ponto de controle**:
-
-```text
-Cliente ───────┐
-               │
-               ▼
-          ┌───────────┐
-          │ FIREWALL  │
-          └───────────┘
-               │
-               ▼
-            Servidor
-```
-
-Antes que uma comunicação seja permitida, o firewall pode verificar algumas informações.
-
-Por exemplo:
-
-* Quem está enviando?
-* Para onde está indo?
-* Qual protocolo está sendo utilizado?
-* Qual porta está sendo utilizada?
-* A comunicação deve ser permitida?
-* A comunicação deve ser bloqueada?
+Uma analogia prática é o trabalho de uma **portaria de condomínio**:
+* Todo visitante que chega precisa apresentar identificação (*IP de origem*).
+* Informar qual apartamento deseja visitar (*IP de destino*).
+* Especificar o objetivo da visita (*Porta e Protocolo, como HTTP/80 ou SSH/22*).
+* O porteiro consulta a lista de regras: se a entrada estiver liberada, a passagem é **permitida (`ACCEPT`)**; caso contrário, a entrada é **negada (`DROP` ou `REJECT`)**.
 
 ---
 
-# 3. Exemplo do mundo real
+## 2. O que é o IPTABLES?
 
-Imagine a portaria de uma empresa.
+O `iptables` é a ferramenta de linha de comando padrão em sistemas Linux utilizada para configurar as tabelas de filtragem de pacotes fornecidas pelo módulo **Netfilter** do próprio Kernel do Linux.
 
-Uma pessoa chega e deseja entrar.
-
-O segurança pode perguntar:
-
-> Quem é você?
-
-Depois:
-
-> Para onde você vai?
-
-E então:
-
-> Você tem autorização para entrar?
-
-O firewall funciona de maneira semelhante.
-
-Podemos representar:
-
-```text
-ORIGEM        DESTINO       SERVIÇO       AÇÃO
-Cliente   →   Servidor      HTTP:80       PERMITIR
-Atacante  →   Servidor      SSH:22        BLOQUEAR
-Cliente   →   Servidor      HTTPS:443     PERMITIR
-```
-
-Uma regra de firewall basicamente determina:
-
-> **O que fazer quando determinado tráfego for identificado.**
+Como o `iptables` opera diretamente dentro do Kernel, ele possui altíssimo desempenho para processar e tomar decisões sobre pacotes de rede em tempo real.
 
 ---
 
-# 4. Firewall baseado em regras
+## 3. Estrutura de Funcionamento: Chains (Cadeias) e Actions (Ações)
 
-Um firewall normalmente trabalha com um conjunto de regras.
-
-Por exemplo:
+O `iptables` organiza as regras na tabela principal de segurança chamada **`filter`**, dividida em **3 cadeias nativas (Chains)** que representam o caminho do fluxo de rede no sistema:
 
 ```text
-Regra 1 → Permitir HTTP
-Regra 2 → Permitir HTTPS
-Regra 3 → Bloquear SSH
-Regra 4 → Bloquear todo o restante
+                           PACOTE CHEGA À INTERFACE
+                                      │
+                                      ▼
+                        ┌───────────────────────────┐
+                        │   Endereçado ao Firewall? │
+                        └─────────────┬─────────────┘
+                                      │
+                      ┌───────────────┴───────────────┐
+                     Sim                             Não
+                      │                               │
+                      ▼                               ▼
+            ┌──────────────────┐            ┌──────────────────┐
+            │   Chain INPUT    │            │  Chain FORWARD   │
+            └──────────────────┘            └──────────────────┘
+                      │                               │
+                      ▼                               ▼
+             Processo Interno                 Atravessa para a LAN
+                      │
+                      ▼
+            ┌──────────────────┐
+            │   Chain OUTPUT   │
+            └──────────────────┘
 ```
 
-Quando um pacote chega ao firewall, as regras são analisadas.
+### As 3 Chains Principais
+* **`INPUT`**: Pacotes cujo destino final é o **próprio firewall**.
+  * *Exemplo:* O servidor Zabbix disparando um ping contra o IP da interface interna do Firewall (`192.168.20.1`).
+* **`FORWARD`**: Pacotes que **atravessam o firewall** de uma rede para outra (roteamento).
+  * *Exemplo:* Pacotes enviados pelo Atacante (`192.168.10.10`) tentando alcançar o Cliente (`192.168.20.10`).
+* **`OUTPUT`**: Pacotes **gerados pelo próprio firewall** e destinados ao exterior.
+  * *Exemplo:* O firewall fazendo um download de atualização de sistema no repositório web.
 
-Um conceito muito importante é:
-
-> **A ordem das regras importa.**
-
-Considere:
-
-```text
-Regra 1: PERMITIR TCP porta 80
-Regra 2: BLOQUEAR TCP porta 80
-```
-
-Se uma conexão HTTP chegar, a primeira regra poderá ser aplicada antes da segunda.
-
-Por isso, devemos ter cuidado ao criar regras.
+### As Ações (Targets)
+Ao encontrar uma correspondência com uma regra, o `iptables` aplica uma das ações:
+* **`ACCEPT`**: Permite a passagem do pacote[cite: 1].
+* **`DROP`**: Descarta o pacote silenciosamente (a origem não recebe nenhuma notificação e sofre *timeout*)[cite: 1].
+* **`REJECT`**: Descarta o pacote enviando uma mensagem explícita de recusa (ICMP Destination Unreachable) para a origem[cite: 1].
 
 ---
 
-# 5. O que é o IPTABLES?
+## 4. Topologia do Laboratório de Referência
 
-O `iptables` é uma ferramenta tradicional do Linux utilizada para configurar regras de filtragem de pacotes.
+Todos os exemplos de comandos a seguir utilizam o endereçamento da nossa topologia de duas sub-redes:
 
-Ele permite controlar o tráfego que passa pelo sistema operacional.
+```text
+[ WAN: 192.168.10.0/24 ]                  [ LAN: 192.168.20.0/24 ]
+  atacante (192.168.10.10)                 cliente (192.168.20.10)
+            │                                         │
+            ▼                                         ▼
+      (switch1 WAN)                             (switch2 LAN)
+            │                                         │
+            └──────────►  firewall (192.168.10.1) ◄───┘
+                          firewall (192.168.20.1)
+                                    ▲
+                                    │
+                          zabbix (192.168.20.5)
+```
 
-Por exemplo:
+## 5. Prática do IPTABLES: Visualizar, Incluir e Excluir Regras
+👁️ A. Visualizando Regras
 
-```bash
+1. Listagem Simples
+Listar todas as regras ativas de todas as cadeias:
+
+```
 iptables -L
 ```
 
-Esse comando permite visualizar regras existentes.
+2. Listagem Detalhada e Rápida (Recomendada para Produção e Aulas)
+Adiciona o parâmetro -n (não resolve nomes de domínio/DNS, evitando lentidão) e -v (exibe contadores de pacotes/bytes e interfaces):
 
-Podemos pensar no `iptables` como uma espécie de:
-
-```text
-                Linux
-                  │
-          ┌───────▼───────┐
-          │    IPTABLES    │
-          │                │
-          │ Regras de      │
-          │ firewall       │
-          └───────┬────────┘
-                  │
-          Tráfego permitido
-          ou bloqueado
 ```
-
----
-
-# 6. Onde o IPTABLES funciona?
-
-O `iptables` funciona no sistema operacional Linux.
-
-Por isso, podemos transformar um computador Linux em um firewall.
-
-No nosso laboratório, teremos um **host Linux atuando como firewall**.
-
-```text
-Rede
-  │
-  ▼
-┌─────────────┐
-│   Firewall  │
-│   Linux     │
-│  iptables   │
-└─────────────┘
-```
-
-O firewall terá a responsabilidade de controlar o tráfego entre as redes.
-
----
-
-# 7. Topologia do laboratório
-
-Nosso laboratório será construído utilizando:
-
-* Docker
-* Containerlab
-* Linux
-* IPTABLES
-
-A topologia terá:
-
-* 1 host atacante
-* 1 host cliente
-* 1 host servidor
-* 1 firewall
-* 2 switches
-
-A representação será:
-
-```text
-                    REDE EXTERNA
-
-                ┌───────────────┐
-                │   Atacante   │
-                └───────┬───────┘
-                        │
-                        │
-                 ┌──────▼──────┐
-                 │   Switch 1  │
-                 └──────┬──────┘
-                        │
-                        │
-                 ┌──────▼──────┐
-                 │  FIREWALL   │
-                 │   IPTABLES  │
-                 └──────┬──────┘
-                        │
-                        │
-                 ┌──────▼──────┐
-                 │   Switch 2  │
-                 └──────┬──────┘
-                        │
-              ┌─────────┴─────────┐
-              │                   │
-       ┌──────▼──────┐     ┌──────▼──────┐
-       │   Cliente   │     │   Servidor  │
-       └─────────────┘     └─────────────┘
-
-                    REDE INTERNA
-```
-
----
-
-# 8. Função de cada equipamento
-
-## Atacante
-
-O host atacante será utilizado para gerar tráfego contra o servidor.
-
-Por exemplo:
-
-```text
-Atacante → Servidor
-```
-
-Podemos utilizar ferramentas como:
-
-```bash
-ping
-curl
-nc
-```
-
-O objetivo inicialmente não é realizar um ataque complexo.
-
-Queremos simplesmente gerar tráfego e observar o comportamento do firewall.
-
----
-
-## Cliente
-
-O cliente representa um equipamento legítimo da rede.
-
-Por exemplo:
-
-```text
-Cliente → Servidor
-```
-
-Esse tráfego deverá ser permitido pelas regras do firewall.
-
----
-
-## Servidor
-
-O servidor disponibilizará algum serviço de rede.
-
-Por exemplo:
-
-```text
-HTTP
-```
-
-Podemos executar um servidor web simples.
-
-O cliente poderá acessar:
-
-```bash
-curl http://IP_DO_SERVIDOR
-```
-
----
-
-## Switches
-
-Os switches serão responsáveis pela interligação dos dispositivos.
-
-Teremos duas redes:
-
-```text
-REDE EXTERNA
-      │
-   Switch 1
-      │
-   Firewall
-      │
-   Switch 2
-      │
-REDE INTERNA
-```
-
-O firewall ficará entre as duas redes.
-
----
-
-# 9. O Firewall como uma "barreira"
-
-Uma das ideias mais importantes desta aula é entender que o firewall fica **entre as redes**.
-
-Sem firewall:
-
-```text
-Atacante ───────────────► Servidor
-```
-
-O atacante consegue tentar estabelecer comunicação diretamente com o servidor.
-
-Com firewall:
-
-```text
-Atacante
-   │
-   ▼
-┌───────────┐
-│ FIREWALL  │
-│ IPTABLES  │
-└─────┬─────┘
-      │
-      ▼
-   Servidor
-```
-
-Agora o tráfego precisa passar pelas regras do firewall.
-
----
-
-# 10. Endereçamento IP
-
-Para facilitar o laboratório, vamos utilizar duas redes diferentes.
-
-### Rede externa
-
-```text
-192.168.10.0/24
-```
-
-Exemplo:
-
-```text
-Atacante:
-192.168.10.10
-```
-
-Interface externa do firewall:
-
-```text
-192.168.10.1
-```
-
----
-
-### Rede interna
-
-```text
-192.168.20.0/24
-```
-
-Exemplo:
-
-```text
-Cliente:
-192.168.20.10
-
-Servidor:
-192.168.20.20
-```
-
-Interface interna do firewall:
-
-```text
-192.168.20.1
-```
-
-A topologia lógica ficará:
-
-```text
-192.168.10.0/24
-          │
-          │
-     ┌────▼────┐
-     │ Firewall│
-     └────┬────┘
-          │
-192.168.20.0/24
-          │
-     ┌────┴────┐
-     │         │
- Cliente    Servidor
-```
-
----
-
-# 11. Por que o firewall precisa de duas interfaces?
-
-O firewall está conectando duas redes diferentes.
-
-Portanto, ele precisa possuir uma interface em cada rede.
-
-```text
-                 FIREWALL
-        ┌──────────────────────┐
-        │                      │
-        │ eth0          eth1   │
-        │  │             │     │
-        └──┼─────────────┼─────┘
-           │             │
-           ▼             ▼
-        REDE 1         REDE 2
-```
-
-Exemplo:
-
-```text
-eth0 → 192.168.10.1
-eth1 → 192.168.20.1
-```
-
----
-
-# 12. Gateway
-
-Um equipamento que precisa acessar outra rede normalmente utiliza um **gateway**.
-
-Por exemplo, o servidor está na rede:
-
-```text
-192.168.20.0/24
-```
-
-Seu gateway será:
-
-```text
-192.168.20.1
-```
-
-Que corresponde à interface interna do firewall.
-
-Assim:
-
-```text
-Servidor
-192.168.20.20
-      │
-      │ gateway
-      ▼
-Firewall
-192.168.20.1
-```
-
-O firewall poderá encaminhar o tráfego para outra rede.
-
----
-
-# 13. Encaminhamento de pacotes
-
-Um firewall que atua como roteador precisa permitir o **encaminhamento de pacotes**.
-
-No Linux, isso está relacionado ao parâmetro:
-
-```text
-ip_forward
-```
-
-Podemos verificar:
-
-```bash
-cat /proc/sys/net/ipv4/ip_forward
-```
-
-Se aparecer:
-
-```text
-1
-```
-
-o encaminhamento está habilitado.
-
-Se aparecer:
-
-```text
-0
-```
-
-o encaminhamento está desabilitado.
-
-Para habilitar temporariamente:
-
-```bash
-sysctl -w net.ipv4.ip_forward=1
-```
-
----
-
-# 14. Entendendo uma regra do IPTABLES
-
-Uma regra pode ser interpretada como:
-
-```text
-SE determinado tráfego acontecer
-ENTÃO execute uma ação.
-```
-
-Por exemplo:
-
-```text
-SE
-origem = 192.168.10.10
-E
-destino = 192.168.20.20
-E
-protocolo = TCP
-E
-porta = 80
-
-ENTÃO
-PERMITIR
-```
-
-Isso pode ser representado:
-
-```text
-Atacante
-192.168.10.10
-      │
-      │ TCP/80
-      ▼
-Firewall
-      │
-      │ PERMITIDO
-      ▼
-Servidor
-192.168.20.20
-```
-
----
-
-# 15. Comando básico do IPTABLES
-
-Uma regra simples pode ser criada com:
-
-```bash
-iptables -A INPUT -p icmp -j DROP
-```
-
-Vamos entender cada parte.
-
-### `iptables`
-
-Executa a ferramenta.
-
-### `-A`
-
-Significa **Append**.
-
-Adiciona uma regra.
-
-### `INPUT`
-
-Indica tráfego destinado ao próprio firewall.
-
-### `-p icmp`
-
-Indica o protocolo ICMP.
-
-O `ping` utiliza ICMP.
-
-### `-j DROP`
-
-Indica a ação.
-
-```text
-DROP = descartar
-```
-
-Portanto:
-
-```bash
-iptables -A INPUT -p icmp -j DROP
-```
-
-significa:
-
-> Descartar pacotes ICMP destinados ao próprio firewall.
-
----
-
-# 16. INPUT, OUTPUT e FORWARD
-
-Esse é um dos conceitos mais importantes do `iptables`.
-
-Existem três chains fundamentais para esta aula:
-
-```text
-INPUT
-OUTPUT
-FORWARD
-```
-
-## INPUT
-
-Tráfego que está entrando **no próprio firewall**.
-
-```text
-Cliente ─────► Firewall
-```
-
-Exemplo:
-
-```text
-ping → Firewall
-```
-
----
-
-## OUTPUT
-
-Tráfego que está saindo **do próprio firewall**.
-
-```text
-Firewall ─────► Servidor
-```
-
----
-
-## FORWARD
-
-Tráfego que **passa pelo firewall** para chegar a outro equipamento.
-
-```text
-Atacante
-    │
-    ▼
-Firewall
-    │
-    ▼
-Servidor
-```
-
-Esse é especialmente importante no nosso laboratório.
-
-O pacote não tem como destino o firewall.
-
-Ele está apenas passando pelo firewall.
-
-Portanto:
-
-```text
-FORWARD
-```
-
-será uma das principais chains utilizadas no laboratório.
-
----
-
-# 17. Exemplo de FORWARD
-
-Imagine:
-
-```text
-Atacante
-192.168.10.10
-       │
-       ▼
-   Firewall
-       │
-       ▼
-Servidor
-192.168.20.20
-```
-
-Queremos bloquear o atacante.
-
-Uma regra conceitualmente poderia ser:
-
-```bash
-iptables -A FORWARD -s 192.168.10.10 -d 192.168.20.20 -j DROP
-```
-
-Interpretando:
-
-```text
--A FORWARD
-```
-
-Adiciona uma regra na chain FORWARD.
-
-```text
--s 192.168.10.10
-```
-
-Define a origem.
-
-`-s` significa:
-
-```text
-source = origem
-```
-
-```text
--d 192.168.20.20
-```
-
-Define o destino.
-
-`-d` significa:
-
-```text
-destination = destino
-```
-
-```text
--j DROP
-```
-
-Descarta o pacote.
-
-Portanto:
-
-> Todo tráfego encaminhado do atacante para o servidor será descartado.
-
----
-
-# 18. DROP x ACCEPT
-
-Duas ações muito importantes são:
-
-```text
-ACCEPT
-DROP
-```
-
-### ACCEPT
-
-Permite o pacote.
-
-```text
-ACCEPT = PERMITIR
-```
-
-### DROP
-
-Descarta o pacote.
-
-```text
-DROP = DESCARTAR
-```
-
-Visualmente:
-
-```text
-          Pacote
-             │
-             ▼
-        ┌──────────┐
-        │ Firewall │
-        └────┬─────┘
-             │
-       ┌─────┴─────┐
-       │           │
-       ▼           ▼
-    ACCEPT        DROP
-       │           │
-       ▼           X
-   Continua      Descartado
-```
-
----
-
-# 19. REJECT x DROP
-
-Existe ainda:
-
-```text
-REJECT
-```
-
-A diferença básica é:
-
-### DROP
-
-O firewall simplesmente descarta o pacote.
-
-```text
-Cliente ───► Firewall ───X
-```
-
-O cliente pode ficar esperando uma resposta até ocorrer um timeout.
-
-### REJECT
-
-O firewall descarta a comunicação e envia uma resposta indicando que ela foi rejeitada.
-
-De maneira simplificada:
-
-```text
-Cliente ───► Firewall
-                │
-                ▼
-             REJECT
-                │
-                ▼
-        Resposta ao cliente
-```
-
-No laboratório, vamos experimentar principalmente `DROP`.
-
----
-
-# 20. Listando as regras
-
-Para visualizar as regras:
-
-```bash
-iptables -L
-```
-
-Uma forma mais detalhada:
-
-```bash
 iptables -L -n -v
 ```
 
-Podemos observar informações como:
+3. Listagem com Números de Linha (Essencial para Exclusão)
+Exibe o número identificador (num) ao lado de cada regra de uma chain específica:
 
-* chain;
-* origem;
-* destino;
-* protocolo;
-* ação;
-* quantidade de pacotes;
-* quantidade de bytes.
-
-Exemplo conceitual:
-
-```text
-Chain FORWARD
-
-target   prot   source          destination
-DROP     tcp    192.168.10.10  192.168.20.20
+```
+iptables -L FORWARD -n --line-numbers
 ```
 
----
+➕ B. Incluindo Regras (-A e -I)
+Existem duas formas de inserir regras: Append (-A), que adiciona ao final da lista, e Insert (-I), que insere em uma posição específica (por padrão, no topo).
 
-# 21. Contadores de pacotes
+1. Exemplo de INPUT (Adicionar ao final com -A)
+Liberar o monitoramento via ICMP (Ping) vindo exclusivamente do Zabbix (192.168.20.5) para o próprio Firewall[cite: 1]:
 
-O `iptables` pode contar quantos pacotes passaram por uma regra.
-
-Por exemplo:
-
-```bash
-iptables -L -n -v
+```
+iptables -A INPUT -p icmp -s 192.168.20.5 -j ACCEPT
 ```
 
-Podemos encontrar:
 
-```text
-pkts
-bytes
+2. Exemplo de FORWARD (Bloqueio de Atacante)
+Bloquear todo o tráfego que o Atacante (192.168.10.10) tentar enviar para o Cliente (192.168.20.10) atravessando o Firewall:
+
+```
+iptables -A FORWARD -s 192.168.10.10 -d 192.168.20.10 -j DROP
 ```
 
-Isso é muito útil para entender o funcionamento do firewall.
+3. Exemplo de Inserção Prioritária (-I)
+Inserir uma regra no topo da cadeia FORWARD (posição 1) para priorizar a liberação da porta HTTP (80) antes de qualquer bloqueio:
 
-Imagine:
-
-```text
-Atacante
-   │
-   │ 100 pacotes
-   ▼
-Firewall
-   │
-   │ DROP
-   X
+```
+iptables -I FORWARD 1 -p tcp --dport 80 -j ACCEPT
 ```
 
-Depois podemos consultar:
+🗑️ C. Excluindo e Limpando Regras
 
-```bash
-iptables -L -n -v
+1. Excluir por Número da Linha (Forma mais segura)
+Primeiro, consulte a numeração das regras:
+
+```
+iptables -L FORWARD -n --line-numbers
 ```
 
-e observar que a regra recebeu os pacotes.
+Saída de exemplo: 
 
----
+Chain FORWARD (policy ACCEPT)
+num  pkts bytes target     prot opt in     out     source           destination          
+1    150  9000  ACCEPT     tcp  --  *      *       0.0.0.0/0        0.0.0.0/0            tcp dpt:80
+2     45  2700  DROP       all  --  *      *       192.168.10.10    192.168.20.10
 
-# 22. Testando o laboratório
+Para apagar a regra número 2 da cadeia FORWARD:
 
-Depois que a topologia estiver funcionando, começaremos sem nenhuma regra de bloqueio.
-
-## Teste 1 — Cliente → Servidor
-
-No cliente:
-
-```bash
-ping 192.168.20.20
+```
+iptables -D FORWARD 2
 ```
 
-Esperamos que haja resposta.
+2. Excluir pela Especificação Exata da Regra
+Reescreva a regra exatamente como foi criada, substituindo o parâmetro de adição (-A) por exclusão (-D):
 
----
-
-## Teste 2 — Atacante → Servidor
-
-No atacante:
-
-```bash
-ping 192.168.20.20
+```
+iptables -D FORWARD -s 192.168.10.10 -d 192.168.20.10 -j DROP
 ```
 
-Inicialmente, também deverá existir comunicação.
+3. Limpar Parcialmente (Flush em uma Chain Específica)
+Remover todas as regras cadastradas apenas na cadeia FORWARD, sem afetar INPUT ou OUTPUT:
 
-Isso é importante porque queremos observar o comportamento **antes e depois da regra**.
-
----
-
-# 23. Criando uma regra de bloqueio
-
-Agora vamos bloquear o atacante.
-
-No firewall:
-
-```bash
-iptables -A FORWARD -s 192.168.10.10 -d 192.168.20.20 -j DROP
+```
+iptables -F FORWARD
 ```
 
-Agora teste novamente:
+4. Limpar Tudo (Flush Total do Firewall)
+Remover todas as regras personalizadas de todas as cadeias do firewall:
 
-```bash
-ping 192.168.20.20
 ```
-
-O resultado esperado é:
-
-```text
-Atacante ─────► Firewall ─────X────► Servidor
-                    DROP
-```
-
-O atacante não deverá conseguir completar a comunicação.
-
----
-
-# 24. O cliente continua funcionando?
-
-Agora faça o teste no cliente:
-
-```bash
-ping 192.168.20.20
-```
-
-O cliente deverá continuar conseguindo acessar o servidor.
-
-Isso demonstra uma característica importante do firewall:
-
-> Podemos bloquear uma origem específica sem necessariamente bloquear toda a rede.
-
-Observe:
-
-```text
-Atacante
-192.168.10.10
-      │
-      ▼
-  FIREWALL
-      │
-      X
-      │
-  Servidor
-
-Cliente
-192.168.20.10
-      │
-      ▼
-  FIREWALL
-      │
-      ▼
-  Servidor
-```
-
----
-
-# 25. Bloqueando uma porta específica
-
-Firewall não precisa necessariamente bloquear todo o tráfego.
-
-Podemos bloquear apenas determinado serviço.
-
-Por exemplo:
-
-```text
-Servidor
-    │
-    ├── HTTP 80
-    ├── HTTPS 443
-    └── SSH 22
-```
-
-Podemos permitir:
-
-```text
-HTTP → permitido
-```
-
-e bloquear:
-
-```text
-SSH → bloqueado
-```
-
-Uma regra pode especificar:
-
-```bash
--p tcp
-```
-
-para TCP e:
-
-```bash
---dport 22
-```
-
-para a porta de destino.
-
-Exemplo:
-
-```bash
-iptables -A FORWARD -s 192.168.10.10 -d 192.168.20.20 -p tcp --dport 22 -j DROP
-```
-
-Interpretando:
-
-> Bloquear conexões TCP da máquina atacante para a porta 22 do servidor.
-
----
-
-# 26. Testando uma porta
-
-Podemos verificar se uma porta está acessível utilizando:
-
-```bash
-nc
-```
-
-Por exemplo:
-
-```bash
-nc -zv 192.168.20.20 22
-```
-
-Ou, se o servidor possuir HTTP:
-
-```bash
-curl http://192.168.20.20
-```
-
-A ideia é observar:
-
-```text
-ANTES DA REGRA
-
-Atacante → Firewall → Servidor
-                    ✓
-
-
-DEPOIS DA REGRA
-
-Atacante → Firewall ──X──→ Servidor
-                    DROP
-```
-
----
-
-# 27. A importância da ordem das regras
-
-Imagine que temos:
-
-```text
-Regra 1 → ACCEPT
-Regra 2 → DROP
-```
-
-Se o pacote corresponder à primeira regra, ele poderá ser aceito antes de chegar à segunda.
-
-Por isso devemos pensar cuidadosamente na ordem.
-
-Exemplo:
-
-```text
-1. Permitir Cliente → Servidor HTTP
-2. Bloquear Atacante → Servidor HTTP
-3. Bloquear restante
-```
-
-A organização das regras faz parte da segurança.
-
----
-
-# 28. Política padrão
-
-Além das regras individuais, podemos definir uma política padrão.
-
-Por exemplo:
-
-```bash
-iptables -P FORWARD DROP
-```
-
-Isso significa:
-
-> Por padrão, o tráfego encaminhado será bloqueado.
-
-A partir disso, precisamos criar regras explícitas para permitir o que é necessário.
-
-Conceitualmente:
-
-```text
-          TRÁFEGO
-             │
-             ▼
-        ┌──────────┐
-        │ FORWARD  │
-        └────┬─────┘
-             │
-      ┌──────┴──────┐
-      │             │
-      ▼             ▼
-   Regra         Sem regra
-      │             │
-      ▼             ▼
-   ACCEPT          DROP
-```
-
-Essa estratégia é conhecida como:
-
-> **Default Deny**
-
-Ou seja:
-
-> Negar por padrão e permitir somente o que for necessário.
-
----
-
-# 29. Cuidado com a política DROP
-
-Durante o laboratório, tenha cuidado com:
-
-```bash
-iptables -P INPUT DROP
-```
-
-ou:
-
-```bash
-iptables -P FORWARD DROP
-```
-
-Uma política `DROP` pode bloquear praticamente toda a comunicação correspondente àquela chain.
-
-Por isso, antes de utilizar uma política restritiva, devemos compreender quais regras são necessárias.
-
----
-
-# 30. Limpando as regras
-
-Para remover as regras criadas:
-
-```bash
 iptables -F
+iptables -X  # Apaga cadeias personalizadas criadas pelo usuário
+iptables -Z  # Zera os contadores de pacotes e bytes
 ```
 
-`-F` significa:
+## 6. Resumo Rápido dos Parâmetros Mais Utilizados
+
+| Parâmetro | Significado | Exemplo de Aplicação |
+| :--- | :--- | :--- |
+| **`-A`** | Append (Adiciona ao final) | `iptables -A INPUT ...` |
+| **`-I`** | Insert (Insere no topo/posição) | `iptables -I FORWARD 1 ...` |
+| **`-D`** | Delete (Remove regra) | `iptables -D FORWARD 2` |
+| **`-L`** | List (Lista as regras) | `iptables -L -n -v` |
+| **`-F`** | Flush (Limpa todas as regras) | `iptables -F` |
+| **`-p`** | Protocolo (tcp, udp, icmp) | `-p tcp` ou `-p icmp` |
+| **`-s`** | Source (IP ou Rede de origem) | `-s 192.168.10.10` |
+| **`-d`** | Destination (IP ou Rede de destino) | `-d 192.168.20.10` |
+| **`--dport`** | Destination Port (Porta de destino) | `--dport 80` ou `--dport 22` |
+| **`-j`** | Jump / Action (Ação a ser tomada) | `-j ACCEPT`, `-j DROP`, `-j REJECT` |
 
-```text
-Flush
-```
-
-ou seja, limpar as regras.
-
-Depois podemos verificar:
-
-```bash
-iptables -L -n -v
-```
-
----
-
-# 31. Fluxo completo do laboratório
-
-Nosso exercício seguirá esta sequência:
-
-```text
-1. Criar a topologia
-        │
-        ▼
-2. Configurar os endereços IP
-        │
-        ▼
-3. Configurar os gateways
-        │
-        ▼
-4. Habilitar IP forwarding
-        │
-        ▼
-5. Testar comunicação
-        │
-        ▼
-6. Visualizar regras do IPTABLES
-        │
-        ▼
-7. Criar regra DROP
-        │
-        ▼
-8. Testar novamente
-        │
-        ▼
-9. Observar os contadores
-        │
-        ▼
-10. Criar regra para uma porta
-        │
-        ▼
-11. Testar novamente
-```
-
----
-
-# 32. Docker e Containerlab
-
-Nosso laboratório será executado em containers.
-
-Isso permite criar uma rede virtual sem precisar de vários computadores físicos.
-
-Podemos representar:
-
-```text
-Container
-    │
-    ├── Atacante
-    │
-    ├── Cliente
-    │
-    ├── Servidor
-    │
-    └── Firewall
-```
-
-O **Containerlab** será responsável por criar e conectar os elementos da topologia.
-
-A ideia é aproximar o laboratório de uma rede real:
-
-```text
-               Containerlab
-
-      ┌──────────────┐
-      │   Atacante   │
-      └──────┬───────┘
-             │
-         ┌───▼───┐
-         │Switch │
-         └───┬───┘
-             │
-       ┌─────▼─────┐
-       │  Firewall │
-       │  iptables │
-       └─────┬─────┘
-             │
-         ┌───▼───┐
-         │Switch │
-         └───┬───┘
-             │
-       ┌─────┴─────┐
-       │           │
-   Cliente      Servidor
-```
-
----
-
-# 33. O que devemos observar durante o laboratório?
-
-Durante os testes, não devemos apenas verificar se o `ping` funciona.
-
-Devemos observar:
-
-### Antes do firewall
-
-```text
-Atacante → Servidor
-     ✓
-```
-
-### Depois da regra
-
-```text
-Atacante → Firewall → Servidor
-                    X
-```
-
-E verificar:
-
-```bash
-iptables -L -n -v
-```
-
-Pergunte:
-
-> O contador de pacotes da regra aumentou?
-
-Se aumentou, significa que os pacotes estão correspondendo à regra.
-
----
-
-# 34. Conceitos importantes
-
-Ao final da aula, você deverá compreender:
-
-| Conceito  | Significado                                  |
-| --------- | -------------------------------------------- |
-| Firewall  | Controla o tráfego de rede                   |
-| IPTABLES  | Ferramenta de firewall do Linux              |
-| Regra     | Define como determinado tráfego será tratado |
-| ACCEPT    | Permite o tráfego                            |
-| DROP      | Descarta o tráfego                           |
-| REJECT    | Rejeita o tráfego informando o remetente     |
-| INPUT     | Tráfego destinado ao firewall                |
-| OUTPUT    | Tráfego originado pelo firewall              |
-| FORWARD   | Tráfego que passa pelo firewall              |
-| `-s`      | Define a origem                              |
-| `-d`      | Define o destino                             |
-| `-p`      | Define o protocolo                           |
-| `--dport` | Define a porta de destino                    |
-| `-A`      | Adiciona uma regra                           |
-| `-L`      | Lista as regras                              |
-| `-F`      | Limpa as regras                              |
-| `-P`      | Define a política padrão                     |
-
----
-
-# 35. Exercício prático
-
-## Desafio 1 — Bloquear o atacante
-
-Configure uma regra para impedir que:
-
-```text
-Atacante
-192.168.10.10
-```
-
-acesse:
-
-```text
-Servidor
-192.168.20.20
-```
-
-### Pergunta
-
-Qual regra do `iptables` deverá ser utilizada?
-
----
-
-## Desafio 2 — Permitir o cliente
-
-O cliente:
-
-```text
-192.168.20.10
-```
-
-deve continuar acessando o servidor.
-
-Teste:
-
-```bash
-ping 192.168.20.20
-```
-
-### Pergunta
-
-O bloqueio do atacante afetou o cliente?
-
-Explique.
-
----
-
-## Desafio 3 — Bloquear uma porta
-
-Considere que o servidor possui SSH:
-
-```text
-TCP/22
-```
-
-Crie uma regra para impedir que o atacante acesse essa porta.
-
-Teste utilizando:
-
-```bash
-nc -zv 192.168.20.20 22
-```
-
----
-
-## Desafio 4 — Observar os contadores
-
-Execute:
-
-```bash
-iptables -L -n -v
-```
-
-Antes do teste e depois do teste.
-
-Observe:
-
-```text
-pkts
-bytes
-```
-
-### Pergunta
-
-O que aconteceu com os contadores depois que o atacante tentou acessar o servidor?
-
----
-
-# 36. Resumo da aula
-
-Podemos resumir o funcionamento do firewall da seguinte maneira:
-
-```text
-                    PACOTE
-                       │
-                       ▼
-                ┌─────────────┐
-                │  FIREWALL   │
-                │  IPTABLES   │
-                └──────┬──────┘
-                       │
-                 Verifica regras
-                       │
-             ┌─────────┴─────────┐
-             │                   │
-             ▼                   ▼
-          ACCEPT                DROP
-             │                   │
-             ▼                   X
-        Pacote segue          Pacote
-                              descartado
-```
-
-O principal conceito desta aula é:
-
-> **Um firewall controla o tráfego utilizando regras que determinam quais comunicações podem passar e quais devem ser bloqueadas.**
-
-No nosso laboratório, o `iptables` será utilizado no **firewall Linux**, que ficará entre a rede externa e a rede interna.
-
-```text
-ATACANTE
-   │
-   ▼
-SWITCH 1
-   │
-   ▼
-FIREWALL
-IPTABLES
-   │
-   ▼
-SWITCH 2
-   │
-   ├────────► CLIENTE
-   │
-   └────────► SERVIDOR
-```
-
-A partir dessa estrutura, podemos evoluir o laboratório para estudar:
-
-* filtragem por IP;
-* filtragem por protocolo;
-* filtragem por porta;
-* políticas padrão;
-* contadores de pacotes;
-* NAT;
-* regras de encaminhamento;
-* bloqueio de ataques;
-* monitoramento do firewall;
-* integração entre firewall e mecanismos de segurança de rede.
-
----
-
-# 📌 Comandos essenciais
-
-```bash
-# Verificar IP
-ip addr
-
-# Verificar rotas
-ip route
-
-# Verificar IP forwarding
-cat /proc/sys/net/ipv4/ip_forward
-
-# Habilitar IP forwarding
-sysctl -w net.ipv4.ip_forward=1
-
-# Listar regras
-iptables -L
-
-# Listar regras com detalhes e contadores
-iptables -L -n -v
-
-# Adicionar regra
-iptables -A FORWARD ...
-
-# Limpar regras
-iptables -F
-
-# Definir política padrão
-iptables -P FORWARD DROP
-```
-
-> **Regra de ouro:** antes de criar uma regra de firewall, pense sempre em **origem → destino → protocolo → porta → ação**.
-
-Exemplo:
-
-```text
-ORIGEM             DESTINO             PROTOCOLO     PORTA     AÇÃO
-
-192.168.10.10  →   192.168.20.20       TCP           80       DROP
-```
-
-Essa forma de pensar facilitará bastante a criação e a análise das regras de firewall.
