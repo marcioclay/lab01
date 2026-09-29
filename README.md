@@ -93,6 +93,9 @@ Endereçamento configurado nas interfaces de rede divididas entre a sub-rede WAN
 | **cliente** | `eth1` | `192.168.20.10/24` | LAN (`switch2`) | Estação de Trabalho Legítima / Alvo |
 | **zabbix** | `eth1` | `192.168.20.5/24` | LAN (`switch2`) | Servidor de Monitorização All-in-One |
 
+
+---
+
 ## 6. Testar conectividade entre os hosts: Validação do tráfego através do switch virtual.
 Realize testes de conectividade ICMP (ping) entre diferentes pontos da rede:
 ```
