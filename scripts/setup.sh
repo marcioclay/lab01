@@ -26,6 +26,10 @@ sudo containerlab deploy -t "$CLAB_FILE"
 echo ""
 echo "=== 3. Aplicando Configurações de Roteamento e Permissões ==="
 
+# Aguarda 3 segundos para garantir que os sistemas operacionais dos containers inicializaram as interfaces
+echo "Aguardando inicialização dos serviços internos..."
+sleep 3
+
 # 3.1. Habilitar Roteamento no Firewall
 echo "[Firewall] Habilitando ip_forward..."
 docker exec clab-lab01-firewall sysctl -w net.ipv4.ip_forward=1 > /dev/null
