@@ -8,10 +8,34 @@ Laboratório containerlab para  mitigação de ataque DoS usando iptables e zabi
 ---
 
 ## 1. Visão geral da topologia
-
- <img width="450" height="350" alt="image" src="https://github.com/user-attachments/assets/2026ee45-e2d1-4484-9ff3-f01471b04c07" />
+``` text
+ REDE EXTERNA (WAN) — Subnet 192.168.10.0/24
+     ┌──────────────────────────────────────────────────────────────────┐
+     │                Switch Virtual 1 (switch1 / bridge)               │
+     └─────────────┬──────────────────────────────────────┬─────────────┘
+                   │ switch1:eth1                         │ switch1:eth2
+                   ▼                                      ▼
+         ┌───────────────────┐                  ┌───────────────────┐
+         │     atacante      │                  │     firewall      │
+         │  (192.168.10.10)  │                  │  (192.168.10.1)   │
+         │       eth1        │                  │       eth1        │
+         └───────────────────┘                  └─────────┬─────────┘
+                                                          │ eth2
+                                                          │ (192.168.20.1)
+                                                          ▼
+     ┌──────────────────────────────────────────────────────────────────┐
+     │                Switch Virtual 2 (switch2 / bridge)               │
+     └─────────────┬──────────────────────────────────────┬─────────────┘
+                   │ switch2:eth2                         │ switch2:eth3
+                   ▼                                      ▼
+         ┌───────────────────┐                  ┌───────────────────┐
+         │      cliente      │                  │      zabbix       │
+         │  (192.168.20.10)  │                  │   (192.168.20.5)  │
+         │       eth1        │                  │       eth1        │
+         └───────────────────┘                  └───────────────────┘
+                  REDE INTERNA (LAN) — Subnet 192.168.20.0/24
        
-
+```
 
 
 ## 2. Clonar o repositório e preparar permissões:Executar no terminal do ambiente Linux.
@@ -31,11 +55,36 @@ chmod +x scripts/setup.sh
 ./scripts/setup.sh
 ```
 
-## 4. Para validar se todos os containers foram iniciados corretamente pelo Containerlab, execute:
+## 4. Teste de Acesso à Internet do Cliente
+Confirme se o cliente acessa a rede externa passando pelo NAT do firewall:
 
 ``` 
-sudo containerlab inspect -t topologia.yml
+docker exec -it clab-lab01-cliente ping -c 3 8.8.8.8
 ```
+
+## 5. Simulação de Ataque do Atacante contra o Cliente
+
+Do container atacante, inunde o cliente passando pelo firewall:
+```
+docker exec -it clab-lab01-atacante hping3 --flood -S -p 80 192.168.20.10
+```
+
+## 6. Bloqueio no Firewall (Cadeia FORWARD)
+No firewall, bloqueie o tráfego do atacante em direção à rede interna:
+
+```
+# Regra no firewall para barrar o IP do atacante atravessando a rede
+docker exec -it clab-lab01-firewall iptables -A FORWARD -s 192.168.10.10 -j DROP
+
+# Monitorar os contadores de bloqueio subindo em tempo real
+docker exec -it clab-lab01-firewall watch -n 1 "iptables -L FORWARD -n -v"
+```
+
+
+
+
+
+
 
 ## 5. Mapeamento dos IPs dos hosts:
 Endereçamento configurado nas interfaces eth1.
