@@ -96,29 +96,32 @@ Endereçamento configurado nas interfaces de rede divididas entre a sub-rede WAN
 
 ---
 
-## 6. Testar conectividade entre os hosts: Validação do tráfego através do switch virtual.
-Realize testes de conectividade ICMP (ping) entre diferentes pontos da rede:
-```
-# 1. Testar comunicação do PC1 até o Firewall
-docker exec -it clab-lab01-pc1 ping -c 3 10.0.0.1
+## 8. Testar conectividade entre os hosts: Validação do roteamento e redes virtuais
 
-# 2. Testar comunicação do Zabbix até o PC1, PC2 e PC3
-docker exec -it clab-lab01-zabbix ping -c 3 10.0.0.2
-docker exec -it clab-lab01-zabbix ping -c 3 10.0.0.3
-docker exec -it clab-lab01-zabbix ping -c 3 10.0.0.4
+Realize os testes de conectividade ICMP (`ping`) entre as diferentes sub-redes para validar o roteamento e a comunicação através do firewall:
+
 ```
+# 1. Testar comunicação da LAN: Cliente até o Gateway/Firewall (192.168.20.1)
+docker exec -it clab-lab01-cliente ping -c 3 192.168.20.1
+
+# 2. Testar acesso à Internet a partir do Cliente (via NAT no Firewall)
+docker exec -it clab-lab01-cliente ping -c 3 8.8.8.8
+
+# 3. Testar comunicação atravessando o Firewall: Atacante (WAN) até o Cliente (LAN)
+docker exec -it clab-lab01-atacante ping -c 3 192.168.20.10
+
+# 4. Testar comunicação interna: Zabbix até o Cliente
+docker exec -it clab-lab01-zabbix ping -c 3 192.168.20.10
 
 ## 7. Testar o serviço e acessar o Zabbix: Verificação da porta HTTP e login.
 Confirme se a interface web do Zabbix está respondendo na porta mapeada (8080):
 
 ```
-# Ver status do zabbix
+
+# 9. Ver status do zabbix
+```
 docker ps -f name=clab-lab01-zabbix 
 ```
-```
-curl -I http://localhost:8080
-```
-
 Acesse o painel pelo navegador em http://<IP-DA-MAQUINA-HOSPEDEIRA>:8080 com os acessos:
 
 - Usuário: Admin
