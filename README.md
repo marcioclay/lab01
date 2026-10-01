@@ -82,7 +82,7 @@ Clone o repositório contendo a estrutura da pasta /lab e ajuste as permissões 
 git clone https://github.com/marcioclay/lab01.git
 cd lab01
 ```
-## 3. Implantar e testar a topologia: 
+## 4. Implantar e testar a topologia: 
 Criação da bridge e subida dos containers.
 Execute o script de automação a partir do diretório /lab para criar a bridge switch e realizar o deploy: 
 
