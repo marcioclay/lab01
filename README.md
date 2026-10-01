@@ -37,6 +37,42 @@ Laboratório containerlab para  mitigação de ataque DoS usando iptables e zabi
        
 ```
 
+## 2. Excluir todos os containers do host
+```
+   # 1. Destruir todas as topologias ativas registradas no Containerlab
+   sudo containerlab destroy --all --cleanup 2>/dev/null || true
+   
+   # 2. Forçar a interrupção e remoção de TODOS os containers Docker no sistema
+   sudo docker rm -f $(sudo docker ps -aq) 2>/dev/null || true
+   
+   # 3. Remover todas as redes virtuais e volumes órfãos do Docker
+   sudo docker network prune -f
+   sudo docker volume prune -f
+   
+   # 4. Apagar pontes de rede (bridges) que possam ter ficado presas no Kernel
+   sudo ip link delete switch1 2>/dev/null || true
+   sudo ip link delete switch2 2>/dev/null || true
+   sudo ip link delete switch 2>/dev/null || true
+   
+   # 5. Apagar diretórios de estado, runtime e sockets do Containerlab e das pastas locais
+   sudo rm -rf /etc/containerlab/
+   sudo rm -rf /var/run/containerlab/
+   sudo rm -rf /tmp/containerlab/
+   sudo rm -rf ./clab-*/
+   
+   # 6. Encerrar qualquer processo do Containerlab pendente em memória
+   sudo pkill -f containerlab 2>/dev/null || true
+```
+
+**Comando de Verificação**
+Para confirmar que a limpeza foi total, execute estes dois comandos. Ambos devem retornar listas completamente vazias:
+```
+  # Deve retornar zero containers
+   sudo docker ps -a
+
+  # Deve retornar "no labs found"
+   sudo containerlab inspect --all
+```   
 
 ## 2. Clonar o repositório e preparar permissões:Executar no terminal do ambiente Linux.
 
