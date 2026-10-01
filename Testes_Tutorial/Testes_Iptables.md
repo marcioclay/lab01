@@ -22,6 +22,11 @@ Antes de começar, lembre-se do mapa da nossa rede:
 > ```
 > docker exec -it clab-lab01-firewall <comando>
 > ```
+> Instalar Iptables
+> ```
+> apk add iptables
+> ```
+
 
 ---
 
