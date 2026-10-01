@@ -74,7 +74,7 @@ Para confirmar que a limpeza foi total, execute estes dois comandos. Ambos devem
    sudo containerlab inspect --all
 ```   
 
-## 2. Clonar o repositório e preparar permissões:Executar no terminal do ambiente Linux.
+## 3. Clonar o repositório e preparar permissões:Executar no terminal do ambiente Linux.
 
 Clone o repositório contendo a estrutura da pasta /lab e ajuste as permissões de execução do script:
 
