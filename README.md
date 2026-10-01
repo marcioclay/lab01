@@ -98,27 +98,8 @@ Confirme se o cliente acessa a rede externa passando pelo NAT do firewall:
 docker exec -it clab-lab01-cliente ping -c 3 8.8.8.8
 ```
 
-## 5. Simulação de Ataque do Atacante contra o Cliente
 
-Do container atacante, inunde o cliente passando pelo firewall:
-```
-docker exec -it clab-lab01-atacante hping3 --flood -S -p 80 192.168.20.10
-```
-
-## 6. Bloqueio no Firewall (Cadeia FORWARD)
-No firewall, bloqueie o tráfego do atacante em direção à rede interna:
-
-```
-# Regra no firewall para barrar o IP do atacante atravessando a rede
-docker exec -it clab-lab01-firewall iptables -A FORWARD -s 192.168.10.10 -j DROP
-
-# Monitorar os contadores de bloqueio subindo em tempo real
-docker exec -it clab-lab01-firewall watch -n 1 "iptables -L FORWARD -n -v"
-```
-
-
-
-## 7. Mapeamento dos IPs dos hosts
+## 5. Mapeamento dos IPs dos hosts
 
 Endereçamento configurado nas interfaces de rede divididas entre a sub-rede WAN (`192.168.10.0/24`) e LAN (`192.168.20.0/24`):
 
@@ -132,7 +113,7 @@ Endereçamento configurado nas interfaces de rede divididas entre a sub-rede WAN
 
 ---
 
-## 8. Testar conectividade entre os hosts: Validação do roteamento e redes virtuais
+## 6. Testar conectividade entre os hosts: Validação do roteamento e redes virtuais
 
 Realize os testes de conectividade ICMP (`ping`) entre as diferentes sub-redes para validar o roteamento e a comunicação através do firewall:
 
