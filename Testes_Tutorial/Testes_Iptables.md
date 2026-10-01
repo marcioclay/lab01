@@ -18,7 +18,10 @@ Antes de começar, lembre-se do mapa da nossa rede:
 > ```
 > docker exec -it clab-lab01-firewall sh
 > ```
-> Ou executá-los diretamente a partir da sua máquina host usando `docker exec -it clab-lab01-firewall <comando>`.
+> Ou executá-los diretamente a partir da sua máquina host usando
+> ```
+> docker exec -it clab-lab01-firewall <comando>
+> ```
 
 ---
 
@@ -199,16 +202,18 @@ iptables -F FORWARD
 - iptables -X        # Apaga cadeias personalizadas criadas pelo usuário
 - iptables -Z        # Zera os contadores de pacotes e bytes
 
-
-
-| Ação | Comando Didático de Exemplo |
+---
+| Ação | Comando |
 | :--- | :--- |
+| **Listar todas as regras** | `iptables -L -n -v` |
 | **Listar regras com números** | `iptables -L FORWARD -n --line-numbers` |
 | **Adicionar no final** | `iptables -A FORWARD -s 192.168.10.10 -j DROP` |
 | **Inserir no topo (prioridade)** | `iptables -I FORWARD 1 -s 192.168.20.5 -j ACCEPT` |
 | **Bloquear Ping (ICMP)** | `iptables -A INPUT -p icmp -j DROP` |
 | **Excluir regra por linha** | `iptables -D FORWARD 1` |
 | **Limpar tudo (Flush)** | `iptables -F` |
+
+
 
 
 
