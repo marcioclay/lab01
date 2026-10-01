@@ -36,6 +36,11 @@ Por padrão, o Linux ignora pacotes que chegam para ele mas são destinados a ou
 sysctl -w net.ipv4.ip_forward=1
 ```
 
+O comando sysctl -w net.ipv4.ip_forward=1 é o responsável por transformar uma máquina Linux comum em um roteador/firewall.
+
+Ele instrui o Kernel do Linux a encaminhar pacotes de rede recebidos em uma interface para outra interface quando o destino final do pacote não for o próprio sistema.
+
+
 ## 🟢 1.2 Configurar NAT (Masquerade) para Acesso à Internet
 Para que a rede LAN (192.168.20.0/24) navegue na Internet através da interface de saída (eth0), aplicamos o Masquerade na tabela nat:
 
