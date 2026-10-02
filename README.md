@@ -74,7 +74,16 @@ Para confirmar que a limpeza foi total, execute estes dois comandos. Ambos devem
    sudo containerlab inspect --all
 ```   
 
-## 3. Clonar o repositório e preparar permissões:Executar no terminal do ambiente Linux.
+## 3. ## 🛠️ 1. Preparação do Ambiente (Apenas em máquinas novas)
+
+Se estiver executando em um sistema recém-instalado, instale o Docker e o Containerlab:
+
+```
+chmod +x scripts/install_deps.sh
+./scripts/install_deps.sh
+```
+
+## 4. Clonar o repositório e preparar permissões:Executar no terminal do ambiente Linux.
 
 Clone o repositório contendo a estrutura da pasta /lab e ajuste as permissões de execução do script:
 
@@ -82,7 +91,8 @@ Clone o repositório contendo a estrutura da pasta /lab e ajuste as permissões 
 git clone https://github.com/marcioclay/lab01.git
 cd lab01
 ```
-## 4. Implantar e testar a topologia: 
+
+## 5. Implantar e testar a topologia: 
 Criação da bridge e subida dos containers.
 Execute o script de automação a partir do diretório /lab para criar a bridge switch e realizar o deploy: 
 
@@ -91,7 +101,7 @@ chmod +x scripts/setup.sh
 ./scripts/setup.sh
 ```
 
-## 4. Teste de Acesso à Internet do Cliente
+## 6. Teste de Acesso à Internet do Cliente
 Confirme se o cliente acessa a rede externa passando pelo NAT do firewall:
 
 ``` 
@@ -99,7 +109,7 @@ docker exec -it clab-lab01-cliente ping -c 3 8.8.8.8
 ```
 
 
-## 5. Mapeamento dos IPs dos hosts
+## 7. Mapeamento dos IPs dos hosts
 
 Endereçamento configurado nas interfaces de rede divididas entre a sub-rede WAN (`192.168.10.0/24`) e LAN (`192.168.20.0/24`):
 
@@ -113,7 +123,7 @@ Endereçamento configurado nas interfaces de rede divididas entre a sub-rede WAN
 
 ---
 
-## 6. Testar conectividade entre os hosts: Validação do roteamento e redes virtuais
+## 8. Testar conectividade entre os hosts: Validação do roteamento e redes virtuais
 
 Realize os testes de conectividade ICMP (`ping`) entre as diferentes sub-redes para validar o roteamento e a comunicação através do firewall:
 
