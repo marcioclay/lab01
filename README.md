@@ -77,11 +77,21 @@ Para confirmar que a limpeza foi total, execute estes dois comandos. Ambos devem
 ## 3. ## 🛠️ 1. Preparação do Ambiente (Apenas em máquinas novas)
 
 Se estiver executando em um sistema recém-instalado, instale o Docker e o Containerlab:
+```
+snap install curl
+```
 
+- Instalar o Docker
 ```
-chmod +x scripts/install_deps.sh
-./scripts/install_deps.sh
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
 ```
+
+- Instalar o Containerlab
+```
+bash -c "$(curl -sL https://get.containerlab.dev)"
+```
+
 
 ## 4. Clonar o repositório e preparar permissões:Executar no terminal do ambiente Linux.
 
