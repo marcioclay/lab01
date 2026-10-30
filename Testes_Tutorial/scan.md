@@ -13,10 +13,28 @@ Este guia traz o passo a passo para a execução da prática de **mapeamento de 
 
 ---
 
-### Caso qualquer comando do iptables não funcione, execute comando abaixo
+### Configurações iniciais
 ```
 # Instalar iptables
 docker exec -it clab-lab01-firewall apk add iptables
+```
+
+```
+# Instalar nmap
+docker exec -it clab-lab01-firewall apk add nmap
+docker exec -it clab-lab01-atacante apk add nmap
+```
+
+
+```
+# 1. Criar o grupo docker (caso ainda não exista)
+sudo groupadd docker
+
+# 2. Adicionar o usuário atual ao grupo docker
+sudo usermod -aG docker $USER
+
+# 3. Aplicar a alteração do grupo na sessão atual do terminal
+newgrp docker
 ```
 
 
@@ -132,14 +150,41 @@ Para detectar e bloquear atacantes que tentam escanear centenas de portas em cur
 sudo chmod 666 /var/run/docker.sock
 ```
 
+A. Criar a Regra de Log no Firewall
+Execute no host para adicionar a regra de log antes de contabilizar ou bloquear:
 ```
-# 1. Registrar o IP que tentar iniciar novas conexões TCP (SYN)
-docker exec -it clab-lab01-firewall iptables -A FORWARD -p tcp --syn -m recent --set --name PORTSCAN
-
-# 2. Bloquear o IP se ele tentar abrir mais de 15 novas portas em um janela de 10 segundos
-docker exec -it clab-lab01-firewall iptables -A FORWARD -p tcp --syn -m recent --update --seconds 10 --hitcount 15 --name PORTSCAN -j DROP
+docker exec -it clab-lab01-firewall iptables -I FORWARD -p tcp --syn -m recent --update --seconds 10 --hitcount 15 --name PORTSCAN -j LOG --log-prefix "[PORTSCAN DETECTADO] "
 ```
 
+B. Redirecionar os Logs em Tempo Real para o Arquivo
+Execute no host o comando que monitora os logs do Kernel no container e grava continuamente dentro do volume compartilhado /scripts/portscan.log:
+```
+docker exec -d clab-lab01-firewall sh -c "dmesg -w | grep --line-buffered 'PORTSCAN DETECTADO' >> /scripts/portscan.log"
+```
+C. Acompanhar os Eventos na Tela (no Host)
+Para visualizar os alertas surgindo na tela enquanto eles são salvos no arquivo, abra um terminal na máquina host (pasta /lab01) e rode:
+```
+tail -f ./scripts/portscan.log
+```
+
+🧪 Testando o Fluxo
+Deixe o * tail -f ./scripts/portscan.log * aberto no Terminal 1.
+
+No Terminal 2, dispare a varredura a partir do atacante:
+```
+docker exec -it clab-lab01-atacante nmap -sS -p 1-100 192.168.20.10
+```
+
+Resultado: As entradas aparecerão em tempo real no Terminal 1 e o arquivo ./scripts/portscan.log ficará gravado no seu disco com o seguinte formato: 
+```
+[PORTSCAN DETECTADO] IN=eth1 OUT=eth2 MAC=... SRC=192.168.10.10 DST=192.168.20.10 LEN=40 TOS=0x00 TTL=63 ID=42891 PROTO=TCP SPT=43892 DPT=80 WINDOW=1024 SYN
+```
+
+
+
+
+
+---
 🧪 Módulo 4: Validação do Bloqueio
 1. Disparar o Port Scan novamente a partir do atacante:
 
